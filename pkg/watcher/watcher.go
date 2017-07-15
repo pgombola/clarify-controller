@@ -32,7 +32,10 @@ func (w *Watcher) Stop() {
 }
 
 // Start launches a go routine that watches a specified key
-// sub-tree for changes. It polls at pollInterval.
+// sub-tree for changes. The modify indexes of keys that it
+// finds are cached. If the modify index on the next polling
+// interval are greater than the cached index, the providied
+// function is called with the key's value.
 func (w *Watcher) Start(f func(v []byte)) {
 	go func() {
 		ticker := time.NewTicker(w.pollInterval)
@@ -53,7 +56,7 @@ func (w *Watcher) Start(f func(v []byte)) {
 				}
 			case <-w.stop:
 				ticker.Stop()
-				// clear state
+				// clear cached indexes
 				w.children = make(map[string]uint64)
 				return
 			}
