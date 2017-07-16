@@ -81,7 +81,7 @@ func Test_ExecutesCallbackPerValueModification(t *testing.T) {
 	wg.Wait()
 }
 
-func Test_NotifiesOnKeyDelete(t *testing.T) {
+func Test_ExecutesCallbackOnDelete(t *testing.T) {
 	c, s := makeClientAndStartServer(t)
 	defer s.Stop()
 
