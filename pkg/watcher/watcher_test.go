@@ -61,7 +61,7 @@ func Test_ExecutesCallbackPerValueModification(t *testing.T) {
 	wg.Add(total)
 	w.Start(func(v []byte) {
 		wg.Done()
-	})
+	}, nil)
 	go func() {
 		modify(&entry{
 			key:   "foo/bar",
@@ -77,6 +77,30 @@ func Test_ExecutesCallbackPerValueModification(t *testing.T) {
 			delay: d,
 			count: total / 2,
 		})
+	}()
+	wg.Wait()
+}
+
+func Test_NotifiesOnKeyDelete(t *testing.T) {
+	c, s := makeClientAndStartServer(t)
+	defer s.Stop()
+
+	kv := c.KV()
+
+	p := &api.KVPair{Key: "baz", Value: []byte("1")}
+	kv.Put(p, nil)
+
+	w := NewWatcher("baz", 10*time.Millisecond, kv)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	w.Start(nil, func(k string) {
+
+		wg.Done()
+	})
+
+	go func() {
+		time.Sleep(10 * time.Millisecond)
+		kv.Delete("baz", nil)
 	}()
 	wg.Wait()
 }

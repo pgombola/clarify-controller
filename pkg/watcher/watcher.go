@@ -36,7 +36,7 @@ func (w *Watcher) Stop() {
 // finds are cached. If the modify index on the next polling
 // interval are greater than the cached index, the providied
 // function is called with the key's value.
-func (w *Watcher) Start(f func(v []byte)) {
+func (w *Watcher) Start(mod func(v []byte), del func(k string)) {
 	go func() {
 		ticker := time.NewTicker(w.pollInterval)
 		for {
@@ -45,15 +45,23 @@ func (w *Watcher) Start(f func(v []byte)) {
 				pairs, _, err := w.kv.List(w.Key, nil)
 				if err != nil {
 					// TODO: Actual logging -- gokit/log or logrus
-					fmt.Printf("Error getting children: %v", err)
+					fmt.Printf("Error getting children for key %s: %v\n", w.Key, err)
 				}
+				updated := make(map[string]uint64)
 				for _, p := range pairs {
-					child, _ := w.children[p.Key]
-					if child < p.ModifyIndex {
-						f(p.Value)
+					oldIndex, _ := w.children[p.Key]
+					if oldIndex < p.ModifyIndex && mod != nil {
+						mod(p.Value)
 					}
-					w.children[p.Key] = p.ModifyIndex
+					updated[p.Key] = p.ModifyIndex
+					delete(w.children, p.Key)
 				}
+				for k := range w.children {
+					if del != nil {
+						del(k)
+					}
+				}
+				w.children = updated
 			case <-w.stop:
 				ticker.Stop()
 				// clear cached indexes
