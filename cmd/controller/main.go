@@ -5,11 +5,11 @@ import (
 	"time"
 
 	consulapi "github.com/hashicorp/consul/api"
-	"github.com/pgombola/consul-watch-test/pkg/controller"
+	"github.com/pgombola/consul-watch-test/pkg/watcher"
 )
 
 func main() {
-	// Parse flags -- Will flag work or do we need viper/cobra?
+	// Parse flags -- Will git flag work or do we need viper/cobra?
 
 	// Run updater
 
@@ -24,17 +24,14 @@ func main() {
 
 	// Create config watchers
 	// TODO: Pass logger in
-	appwatch := controller.NewWatcher("/registry/config/apps", 1*time.Minute, client.KV())
-	appwatch.Start(func(v []byte) {
-		// if running, restart
-		// Where do we check to see if the current node can launch the application?
-		// if not running, create launcher based on unmarshalled v
-	})
-	controller.NewWatcher("/registry/config/nodes", 1*time.Minute, client.KV())
-	controller.NewWatcher("/registry/config/system", 1*time.Minute, client.KV())
+	appCfgWatch := watcher.NewWatch("/registry/config/apps", 1*time.Minute, client.KV())
+
+	nodeCfgWatch := watcher.NewWatch("/registry/config/nodes", 1*time.Minute, client.KV())
+
+	sysCfgWatch := watcher.NewWatch("/registry/config/system", 1*time.Minute, client.KV())
 
 	// Create app watcher
-	controller.NewWatcher("/registry/app", 15*time.Second, client.KV())
+	appWatch := watcher.NewWatch("/registry/app", 15*time.Second, client.KV())
 
 	// Create lifecycle watcher -- or is this part of /registry/config/nodes?
 
