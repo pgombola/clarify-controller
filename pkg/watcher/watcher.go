@@ -42,6 +42,7 @@ func (w *Watch) Stop() {
 // interval are greater than the cached index, the providied
 // function is called with the key's value.
 func (w *Watch) Start(watcher Watcher) {
+	//TODO bootstrap for nodes that haven't been watching
 	go func() {
 		ticker := time.NewTicker(w.pollInterval)
 		for {
