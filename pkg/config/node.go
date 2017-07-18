@@ -32,6 +32,8 @@ func (n *Nodes) Updated(v []byte) {
 func (n *Nodes) Deleted(host string) {
 	for i, node := range n.nodes {
 		if node.Hostname == host {
+			// TODO: review this piece of code here
+			// https://github.com/golang/go/wiki/SliceTricks
 			copy(n.nodes[i:], n.nodes[i+1:])
 			n.nodes[len(n.nodes)-1] = &Node{}
 			n.nodes = n.nodes[:len(n.nodes)-1]
