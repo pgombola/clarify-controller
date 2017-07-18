@@ -7,7 +7,7 @@ import (
 	consulapi "github.com/hashicorp/consul/api"
 )
 
-type Watcher struct {
+type Watch struct {
 	Key          string
 	pollInterval time.Duration
 	kv           *consulapi.KV
@@ -15,9 +15,14 @@ type Watcher struct {
 	stop         chan bool
 }
 
+type Watcher interface {
+	Updated([]byte)
+	Deleted(string)
+}
+
 // NewWatcher creates a new watcher on the specified key.
-func NewWatcher(key string, pollInterval time.Duration, kv *consulapi.KV) *Watcher {
-	return &Watcher{
+func NewWatch(key string, pollInterval time.Duration, kv *consulapi.KV) *Watch {
+	return &Watch{
 		Key:          key,
 		pollInterval: pollInterval,
 		kv:           kv,
@@ -27,7 +32,7 @@ func NewWatcher(key string, pollInterval time.Duration, kv *consulapi.KV) *Watch
 }
 
 // Stop exits from the watching go routine.
-func (w *Watcher) Stop() {
+func (w *Watch) Stop() {
 	w.stop <- true
 }
 
@@ -36,7 +41,7 @@ func (w *Watcher) Stop() {
 // finds are cached. If the modify index on the next polling
 // interval are greater than the cached index, the providied
 // function is called with the key's value.
-func (w *Watcher) Start(mod func(v []byte), del func(k string)) {
+func (w *Watch) Start(watcher Watcher) {
 	go func() {
 		ticker := time.NewTicker(w.pollInterval)
 		for {
@@ -50,16 +55,14 @@ func (w *Watcher) Start(mod func(v []byte), del func(k string)) {
 				updated := make(map[string]uint64)
 				for _, p := range pairs {
 					oldIndex, _ := w.children[p.Key]
-					if oldIndex < p.ModifyIndex && mod != nil {
-						mod(p.Value)
+					if oldIndex < p.ModifyIndex {
+						watcher.Updated(p.Value)
 					}
 					updated[p.Key] = p.ModifyIndex
 					delete(w.children, p.Key)
 				}
 				for k := range w.children {
-					if del != nil {
-						del(k)
-					}
+					watcher.Deleted(k)
 				}
 				w.children = updated
 			case <-w.stop:

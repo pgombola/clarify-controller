@@ -11,6 +11,18 @@ import (
 	"github.com/hashicorp/consul/testutil"
 )
 
+type CountdownWatcher struct {
+	wg *sync.WaitGroup
+}
+
+func (cw *CountdownWatcher) Updated(v []byte) {
+	cw.wg.Done()
+}
+
+func (cw *CountdownWatcher) Deleted(k string) {
+	cw.wg.Done()
+}
+
 func addPathToConsul(t *testing.T) {
 	path := os.Getenv("PATH")
 	dir, err := os.Getwd()
@@ -56,12 +68,12 @@ func Test_ExecutesCallbackPerValueModification(t *testing.T) {
 	d := 10 * time.Millisecond
 	total := 4
 
-	w := NewWatcher("foo", d, c.KV())
+	w := NewWatch("foo", d, c.KV())
 	var wg sync.WaitGroup
 	wg.Add(total)
-	w.Start(func(v []byte) {
-		wg.Done()
-	}, nil)
+	w.Start(&CountdownWatcher{wg: &wg})
+	defer w.Stop()
+	
 	go func() {
 		modify(&entry{
 			key:   "foo/bar",
@@ -90,13 +102,11 @@ func Test_ExecutesCallbackOnDelete(t *testing.T) {
 	p := &api.KVPair{Key: "baz", Value: []byte("1")}
 	kv.Put(p, nil)
 
-	w := NewWatcher("baz", 10*time.Millisecond, kv)
+	w := NewWatch("baz", 10*time.Millisecond, kv)
 	var wg sync.WaitGroup
 	wg.Add(1)
-	w.Start(nil, func(k string) {
-
-		wg.Done()
-	})
+	w.Start(&CountdownWatcher{wg: &wg})
+	defer w.Stop()
 
 	go func() {
 		time.Sleep(10 * time.Millisecond)
